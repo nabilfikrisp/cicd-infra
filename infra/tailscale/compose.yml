@@ -1,0 +1,23 @@
+services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: tailscale
+    restart: unless-stopped
+
+    environment:
+      TS_HOSTNAME: ${TS_HOSTNAME:-infra}
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_AUTH_ONCE: "true"
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "true"
+      TS_SERVE_CONFIG: /config/serve.json
+
+    volumes:
+      - arcane-state:/var/lib/tailscale
+      - ./config:/config:ro
+
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  arcane-state:

@@ -1,0 +1,10 @@
+services:
+  arcane:
+    network_mode: bridge
+
+    ports:
+      - "127.0.0.1:3552:3552"
+
+    environment:
+      ARCANE_APP_URL: http://localhost:3552
+      ARCANE_LISTEN: "0.0.0.0"

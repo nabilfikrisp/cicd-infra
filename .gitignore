@@ -1,0 +1,14 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Runtime projects
+/projects/
+
+# Private keys
+*.pem
+*.key
+
+# Arcane
+initial-admin-password

@@ -1,0 +1,27 @@
+services:
+  arcane:
+    image: ghcr.io/getarcaneapp/manager:latest
+    container_name: arcane
+
+    network_mode: "container:tailscale"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - arcane-data:/app/data
+      - ${PROJECTS_DIR}:${PROJECTS_DIR}
+
+    environment:
+      ARCANE_APP_URL: ${ARCANE_APP_URL}
+      ARCANE_ENCRYPTION_KEY: ${ARCANE_ENCRYPTION_KEY}
+      ARCANE_PROJECTS_DIRECTORY: ${PROJECTS_DIR}
+      ARCANE_LISTEN: "127.0.0.1"
+      ARCANE_PORT: "3552"
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Asia/Jakarta}
+
+    cgroup: host
+    restart: unless-stopped
+
+volumes:
+  arcane-data:
