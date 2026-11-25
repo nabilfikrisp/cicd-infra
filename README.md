@@ -4,7 +4,7 @@ A small self-hosted CI/CD playground using Docker, Arcane, and Tailscale.
 
 I wanted a server that runs application images without checking out application source repositories or building them on the server. The management dashboard should stay private. I'm still figuring out the best way to put everything together, and a few decisions here came from things breaking.
 
-**Status:** Arcane and Tailscale work locally (WSL and an Android client). VPS deployment and automated CI/CD are not verified yet.
+**Status:** Arcane and Tailscale work locally (WSL and an Android client). The application image is built and published to GHCR, and a SHA-tagged image has been pulled and run locally. Deployment through Arcane or on the VPS, and automated deployment, are not done yet.
 
 ## Why am I doing this?
 
@@ -20,7 +20,7 @@ Am I overcomplicating things? Probably. But that's kind of the point. This is a 
 
 ## Deployment strategy (planned)
 
-GitHub Actions will lint, test, build, and publish the Go application's image to GHCR. After a successful push, the runner temporarily joins Tailscale as `tag:runner` and calls Arcane's inbound webhook over HTTPS. Arcane pulls the image and handles deployment.
+GitHub Actions already lints, tests, builds, and publishes the Go application's image to GHCR. The planned next step is for the runner to temporarily join Tailscale as `tag:runner` after publication and call Arcane's inbound webhook over HTTPS. Arcane would then pull the image and handle deployment. This integration is not done yet; a push to `main` does not deploy the application yet.
 
 This is an image-based deployment with a push-based trigger, not scheduled Git Sync. The VPS doesn't need to clone the application repository. Cloudflared will expose only the Go application, never Arcane or its webhook.
 
@@ -51,6 +51,16 @@ flowchart LR
 The administrator can access all infrastructure ports. The runner is restricted to TCP 443, reserved for Arcane. This is a network-level restriction, not API-level authorization; runner access is not tested yet.
 
 Arcane and Tailscale run in separate Compose projects, sharing one network namespace. No host ports are published in the server configuration, and Tailscale Funnel is disabled. I chose a shared gateway to avoid running a Tailscale container for every app; I haven't actually benchmarked the resource savings.
+
+## Application and image
+
+The Go backend lives in [cicd-demo](https://github.com/nabilfikrisp/cicd-demo). It uses Gin and provides a simple in-memory service catalog; data resets on restart. It listens on port `3003` by default and exposes `/health` and `/version`. The repository includes linting, race tests, and a multi-stage Dockerfile.
+
+GitHub Actions runs lint and tests on pull requests and pushes to `main`; both checks are required by the application's `main` ruleset. Pull request checks have read-only repository permissions. After both checks pass on a push to `main`, a separate publish job builds and pushes the image; only that job has `packages: write`.
+
+The image is public at `ghcr.io/nabilfikrisp/cicd-demo` and tagged with the full Git commit SHA. `/version` reports `dev` and that SHA. A published SHA-tagged image has been pulled and run locally, but it has not yet been deployed through Arcane or on the VPS.
+
+The GHCR package is public so people can try the demo without registry credentials. If it becomes private, Arcane will need GHCR credentials with access to the package and `read:packages`. Private pulls through Arcane have not been tested.
 
 ## Repository layout
 
@@ -256,10 +266,10 @@ Already configured and tested locally:
 
 Before enabling automated deployments:
 
-- Protect `main` and deployment workflows; untrusted pull requests only run unprivileged CI.
+- The application's `main` ruleset requires lint and tests, and pull request checks have read-only repository permissions. Protect future deployment workflows as well.
 - Use short-lived OIDC authentication scoped to the trusted repository and branch/environment, with ephemeral `tag:runner` nodes and minimal workflow permissions.
 - Reserve TCP 443 for Arcane; use a dedicated, project-scoped webhook credential if supported, never an admin credential or SSH access. Keep the webhook URL out of logs and Git.
-- Pin third-party Actions to full commit SHAs and use tested image versions; plan immutable application image tags or digests, rollback, and deployment concurrency control.
+- The application repository currently uses readable GitHub Action version tags, not full commit SHA pins or an Actions lockfile. Pin third-party Actions to full commit SHAs before automated deployment, use tested image versions, and plan rollback and deployment concurrency control. Application images are already tagged with the full commit SHA.
 - Keep Cloudflared limited to the Go application, enable MFA, and back up state and encryption keys.
 
 A few risks remain: Arcane's Docker socket is effectively host-level privilege, shared network namespaces allow local communication outside Tailscale grants, and the gateway is a single point of failure. HTTP over Tailscale is network-encrypted but lacks application-layer TLS; prefer HTTPS. A compromised deployment runner could still publish or deploy a malicious image within its granted privileges. None of this is a claim of production readiness.
@@ -282,7 +292,16 @@ Check `git diff --cached` and ensure real `.env` files are not already tracked. 
 
 Clone only this infrastructure repository. Repeat environment setup with a new one-time auth key, a new Arcane encryption key (for a fresh database), hostname `infra`, and the correct server paths and IDs. Run `bash infra/setup.sh` and verify access. Never enable the local Compose override on the VPS.
 
-Application images will eventually come from GHCR, not an application repository checkout. Images themselves may still contain application code depending on how they're built.
+Application images are published to GHCR and will eventually be deployed from there, without an application repository checkout. Images themselves may still contain application code depending on how they're built.
+
+The planned path from here is:
+
+1. Deploy the infrastructure stack to the VPS and verify private Arcane access.
+2. Create an application project in Arcane using a Compose file that references a specific `ghcr.io/nabilfikrisp/cicd-demo:<full-commit-sha>` image. Deploy it manually, then verify `/health` and `/version` from the server. The public package should not require registry credentials.
+3. Configure Cloudflare Tunnel to route a public hostname to the backend on port `3003`, and verify both endpoints through that hostname. Expose only the backend, not Arcane or its webhook. The networking between Cloudflared and the backend still needs to be worked out and tested.
+4. Configure Tailscale runner OIDC authentication and Arcane's inbound webhook, then test automated deployment and failure cases.
+
+These steps are planned and have not been completed on the VPS yet.
 
 ## What's next
 
@@ -290,9 +309,9 @@ Application images will eventually come from GHCR, not an application repository
 
 - [x] Arcane standalone and private local integration
 - [x] Shared gateway, access policies, setup and teardown scripts
-- [ ] Build a small Go backend in a separate repository, with linting, tests, and a multi-stage Dockerfile
+- [x] Build a small Go backend in a separate repository, with linting, tests, and a multi-stage Dockerfile
 - [ ] Deploy infrastructure to the VPS and improve readiness checks
-- [ ] Set up GitHub Actions and GHCR with restricted workflow permissions
+- [x] Set up GitHub Actions and GHCR with restricted workflow permissions
 - [ ] Configure short-lived Tailscale runner authentication via OIDC
 - [ ] Integrate Arcane's inbound webhook and verify runner access boundaries
 - [ ] Expose only the Go backend through Cloudflare Tunnel
