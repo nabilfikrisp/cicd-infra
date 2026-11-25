@@ -303,6 +303,8 @@ The planned path from here is:
 
 These steps are planned and have not been completed on the VPS yet.
 
+After the single-instance deployment works, the plan is to add persistent shared storage, such as PostgreSQL, before running multiple backend instances behind a simple load balancer. Each instance currently has its own in-memory catalog, so multiple instances would return inconsistent data and lose it on restart. With shared storage and multiple instances in place, test health-gated rolling or blue-green deployments under continuous requests; multiple instances alone do not guarantee zero downtime.
+
 ## What's next
 
 ### Phase 1 — Make it work
