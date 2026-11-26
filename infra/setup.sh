@@ -8,6 +8,7 @@ INFRA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STACKS=(
     "tailscale"
     "arcane"
+    "cloudflared"
 )
 
 log() {
@@ -73,6 +74,10 @@ if [[ "$previous_id" != "$current_id" ]]; then
 else
     compose arcane up -d
 fi
+
+# Deploy Cloudflared after the private infrastructure
+log "Deploying Cloudflared..."
+compose cloudflared up -d
 
 log "Infrastructure deployment completed."
 
