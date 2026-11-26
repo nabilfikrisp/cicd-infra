@@ -312,7 +312,7 @@ After the single-instance deployment works, the plan is to add persistent shared
 - [x] Arcane standalone and private local integration
 - [x] Shared gateway, access policies, setup and teardown scripts
 - [x] Build a small Go backend in a separate repository, with linting, tests, and a multi-stage Dockerfile
-- [ ] Deploy infrastructure to the VPS and improve readiness checks
+- [x] Deploy infrastructure to the VPS and improve readiness checks
 - [x] Set up GitHub Actions and GHCR with restricted workflow permissions
 - [ ] Configure short-lived Tailscale runner authentication via OIDC
 - [ ] Integrate Arcane's inbound webhook and verify runner access boundaries
